@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
 using IoTClient.gRPC;
 // create a httpHandler
@@ -13,9 +14,11 @@ var client = new IoTMessage.IoTMessageClient(channel);
 
 for (int i = 0; i < 10; i++)
 {
-    var reply = await client.SendAsync(
-                  new EdgeRequest { Data = $"Client_{i}" });
-    Console.WriteLine("Greeting: " + reply.Message);
+    var data= DataGenerator.GenerateData(1);
+    var request = new EdgeRequest { Data = data, SendTime = DateTime.UtcNow.ToTimestamp() };
+    var reply = await client.SendAsync(request);
+    TimeSpan ts = reply.ReceivedTime.ToDateTime() - request.SendTime.ToDateTime();
+    Console.WriteLine("Latency : " + ts.Microseconds);
 }
 
 Console.WriteLine("Press any key to exit...");

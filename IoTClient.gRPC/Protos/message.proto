@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 option csharp_namespace = "IoTClient.gRPC";
+import "google/protobuf/timestamp.proto";
 
 package message;
 
@@ -10,8 +11,9 @@ service IoTMessage {
 
 message EdgeRequest {
   string data = 1;
+  google.protobuf.Timestamp _sendTime=2;
 }
 
 message EdgeResponse {
-  string message = 1;
+  google.protobuf.Timestamp _receivedTime=1;
 }
