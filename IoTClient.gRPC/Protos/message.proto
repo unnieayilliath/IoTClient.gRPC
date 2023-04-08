@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option csharp_namespace = "IoTClient.gRPC";
+
+package message;
+
+service IoTMessage {
+  rpc Send (EdgeRequest) returns (EdgeResponse);
+}
+
+message EdgeRequest {
+  string data = 1;
+}
+
+message EdgeResponse {
+  string message = 1;
+}
