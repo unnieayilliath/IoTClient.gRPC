@@ -8,10 +8,15 @@ httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.Danger
 
 var httpClient = new HttpClient(httpHandler);
 // The port number must match the port of the gRPC server.
-using var channel = GrpcChannel.ForAddress("https://localhost:7003", new GrpcChannelOptions { HttpClient = httpClient });
+using var channel = GrpcChannel.ForAddress("https://localhost:5001", new GrpcChannelOptions { HttpClient = httpClient });
 var client = new IoTMessage.IoTMessageClient(channel);
-var reply = await client.SendAsync(
-                  new EdgeRequest { Data = "GreeterClient" });
-Console.WriteLine("Greeting: " + reply.Message);
+
+for (int i = 0; i < 10; i++)
+{
+    var reply = await client.SendAsync(
+                  new EdgeRequest { Data = $"Client_{i}" });
+    Console.WriteLine("Greeting: " + reply.Message);
+}
+
 Console.WriteLine("Press any key to exit...");
 Console.ReadKey();
