@@ -5,11 +5,15 @@ import "google/protobuf/timestamp.proto";
 
 package message;
 
-service IoTMessage {
-  rpc Send (EdgeRequest) returns (EdgeResponse);
+service EdgeGateway {
+	//Unary RPC
+  rpc Send (IoTMessage) returns (EdgeResponse);
+  // Client streaming
+  rpc SendStream (stream IoTMessage) returns (EdgeResponse);
+
 }
 
-message EdgeRequest {
+message IoTMessage {
   string data = 1;
   google.protobuf.Timestamp _sendTime=2;
 }
