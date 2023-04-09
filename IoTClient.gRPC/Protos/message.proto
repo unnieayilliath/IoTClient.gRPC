@@ -7,13 +7,13 @@ package message;
 
 service EdgeGateway {
 	//Unary RPC
-  rpc Send (IoTMessage) returns (EdgeResponse);
+  rpc Send (EdgeRequest) returns (EdgeResponse);
   // Client streaming
-  rpc SendStream (stream IoTMessage) returns (EdgeResponse);
+  rpc SendStream (stream EdgeRequest) returns (EdgeResponse);
 
 }
 
-message IoTMessage {
+message EdgeRequest {
   string data = 1;
   google.protobuf.Timestamp _sendTime=2;
 }

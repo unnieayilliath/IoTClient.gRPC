@@ -15,7 +15,7 @@ var client = new EdgeGateway.EdgeGatewayClient(channel);
 for (int i = 0; i < 10; i++)
 {
     var data= DataGenerator.GenerateData(1);
-    var request = new IoTMessage { Data = data, SendTime = DateTime.UtcNow.ToTimestamp() };
+    var request = new EdgeRequest { Data = data, SendTime = DateTime.UtcNow.ToTimestamp() };
     var reply = await client.SendAsync(request);
     TimeSpan ts = reply.ReceivedTime.ToDateTime() - request.SendTime.ToDateTime();
     Console.WriteLine("Latency : " + ts.Microseconds);
