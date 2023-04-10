@@ -15,10 +15,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Protos\" />
-	  <Protobuf Include="Protos\message.proto" GrpcServices="Client" />
-  </ItemGroup>
-
+	<ItemGroup>
+		<Protobuf Include="..\..\CommonModule.Protos\edge.proto" GrpcServices="Client" />
+	</ItemGroup>
 </Project>
