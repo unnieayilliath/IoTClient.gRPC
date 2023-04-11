@@ -2,7 +2,7 @@
 using CommonModule.Protos;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
-using IoTClient.gRPC;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 // create a httpHandler
 var httpHandler = new HttpClientHandler();
 //ignore certificate validations
@@ -15,11 +15,17 @@ var client = new EdgeGateway.EdgeGatewayClient(channel);
 
 for (int i = 0; i < 10; i++)
 {
-    var data= DataGenerator.GenerateData(1);
-    int byteSize = data.CalculateSize();
-    var reply = await client.SendEquipmentAsync(data);
-    TimeSpan ts = reply.ReceivedTime.ToDateTime() - data.Timestamp.ToDateTime();
-    Console.WriteLine($"Sent  {byteSize} in  {ts.Microseconds}");
+    var data = new FacilityMessage
+    {
+        Humidity = i + 5,
+        Temperature = i + 10,
+        TimestampStart = DateTime.UtcNow.ToTimestamp(),
+    };
+    Thread.Sleep(5000);
+    data.TimestampEnd = DateTime.UtcNow.ToTimestamp();
+    var reply = await client.SendFacilityAsync(data);
+    TimeSpan ts = reply.ReceivedTime.ToDateTime() - data.TimestampStart.ToDateTime();
+    Console.WriteLine($"Sent in  {ts.Microseconds}");
 }
 
 Console.WriteLine("Press any key to exit...");

@@ -23,8 +23,8 @@ namespace IoTClient.gRPC
             message.DeviceId = $"machine-{randomNumber}";
             message.Status = randomNumber % 2 == 0 ? "Running" : "Stopped";
             message.Timestamp = DateTime.UtcNow.ToTimestamp();
-            message.Temperature = message.Status == "Running" ? $"{rnd.Next(50, 100)}" : $"{rnd.Next(10, 30)}";
-            message.EnergyConsumption = message.Status == "Running" ? $"{rnd.Next(100, 200)}" : "0";
+            message.Temperature = message.Status == "Running" ? rnd.Next(50, 100) : rnd.Next(10, 30);
+            message.EnergyConsumption = message.Status == "Running" ? rnd.Next(100, 200) : 0;
             IEnumerable<char> list = CreatePayload(payloadSize);
             message.Payload= string.Join("", list);
             return message;
