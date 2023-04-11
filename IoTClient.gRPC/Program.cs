@@ -16,9 +16,10 @@ var client = new EdgeGateway.EdgeGatewayClient(channel);
 for (int i = 0; i < 10; i++)
 {
     var data= DataGenerator.GenerateData(1);
+    int byteSize = data.CalculateSize();
     var reply = await client.SendAsync(data);
     TimeSpan ts = reply.ReceivedTime.ToDateTime() - data.Timestamp.ToDateTime();
-    Console.WriteLine("Latency : " + ts.Microseconds);
+    Console.WriteLine($"Sent  {byteSize} in  {ts.Microseconds}");
 }
 
 Console.WriteLine("Press any key to exit...");
