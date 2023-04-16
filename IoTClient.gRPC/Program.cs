@@ -12,8 +12,9 @@ var httpClient = new HttpClient(httpHandler);
 // The port number must match the port of the gRPC server.
 using var channel = GrpcChannel.ForAddress("https://localhost:5001", new GrpcChannelOptions { HttpClient = httpClient });
 var client = new EdgeGateway.EdgeGatewayClient(channel);
-
-for (int i = 0; i < 10; i++)
+//sleep 5 secs to ensure that facility client is running
+Thread.Sleep(5000);
+while (true)
 {
     var data= DataGenerator.GenerateData(1);
     int byteSize = data.CalculateSize();
