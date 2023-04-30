@@ -20,6 +20,7 @@ namespace IoTClient.gRPC
         {
             var message = new EquipmentMessage();
             int randomNumber = rnd.Next(1, 11);
+            message.MessageId=Guid.NewGuid().ToString();
             message.DeviceId = $"machine-{randomNumber}";
             message.Status = randomNumber % 2 == 0 ? "Running" : "Stopped";
             message.Timestamp = DateTime.UtcNow.ToTimestamp();
