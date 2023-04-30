@@ -25,6 +25,7 @@ namespace IoTClient.gRPC
             message.Timestamp = DateTime.UtcNow.ToTimestamp();
             message.Temperature = message.Status == "Running" ? rnd.Next(50, 100) : rnd.Next(10, 30);
             message.EnergyConsumption = message.Status == "Running" ? rnd.Next(100, 200) : 0;
+            message.ProductionRate = 10;
             IEnumerable<char> list = CreatePayload(payloadSize);
             message.Payload= string.Join("", list);
             return message;

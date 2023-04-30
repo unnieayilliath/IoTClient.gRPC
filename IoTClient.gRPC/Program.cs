@@ -1,9 +1,16 @@
 ﻿using IoTClient.gRPC.Equipment;
+using Microsoft.Extensions.Configuration;
+
 //sleep 5 secs to ensure that facility client is running
 Thread.Sleep(5000);
 var logs=new List<string>();
 var logFilePrefix = "";
-using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient())
+
+var builder = new ConfigurationBuilder()
+               .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+               .AddJsonFile("appsettings.json");
+var configuration = builder.Build();
+using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration))
 {
     var streamingOption = Show_TopLevelChoices();
     switch (streamingOption)
