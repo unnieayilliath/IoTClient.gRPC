@@ -9,7 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using static CommonModule.Protos.EdgeGateway;
+using static CommonModule.Protos.Equipment;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace IoTClient.gRPC.Equipment
@@ -17,7 +17,7 @@ namespace IoTClient.gRPC.Equipment
     internal class EquipmentGrpcClient : IDisposable
     {
         private readonly GrpcChannel _clientChannel;
-        private readonly EdgeGatewayClient _client;
+        private readonly EquipmentClient _client;
         public List<string> logs = new List<string>();
         public EquipmentGrpcClient(IConfiguration configuration)
         {
@@ -38,7 +38,7 @@ namespace IoTClient.gRPC.Equipment
             var gRPCEdgeServer = gRPCConfig.GetSection("server").Value;
             // The port number must match the port of the gRPC server.
             _clientChannel = GrpcChannel.ForAddress(gRPCEdgeServer, new GrpcChannelOptions { HttpClient = httpClient });
-            _client = new EdgeGatewayClient(_clientChannel);
+            _client = new EquipmentClient(_clientChannel);
         }
         /// <summary>
         /// 
@@ -52,7 +52,7 @@ namespace IoTClient.gRPC.Equipment
             {
                 var data = DataGenerator.GenerateData(payloadSize);
                 var startTime = DateTime.UtcNow;
-                var reply = await _client.SendEquipmentAsync(data);
+                var reply = await _client.SendAsync(data);
                 var receivedTime = DateTime.UtcNow;
                 TimeSpan ts = receivedTime - startTime;
                 Console.WriteLine("Unary RTT=" + ts.TotalMilliseconds);
@@ -73,7 +73,7 @@ namespace IoTClient.gRPC.Equipment
             {
                 var data = DataGenerator.GenerateData(i);
                 var startTime = DateTime.UtcNow;
-                var reply = await _client.SendEquipmentAsync(data);
+                var reply = await _client.SendAsync(data);
                 var receivedTime = DateTime.UtcNow;
                 TimeSpan ts = receivedTime - startTime;
                 Console.WriteLine("Unary RTT=" + ts.TotalMilliseconds);
@@ -89,7 +89,7 @@ namespace IoTClient.gRPC.Equipment
         /// <returns></returns>
         public async Task SendConstantPayload_StreamAsync(int payloadSize, int numberOfRuns)
         {
-            using var streamCall = _client.SendEquipmentStream();
+            using var streamCall = _client.SendStream();
             for (int i = 1; i <= numberOfRuns; i++)
             {
                 var data = DataGenerator.GenerateData(payloadSize);
@@ -112,7 +112,7 @@ namespace IoTClient.gRPC.Equipment
         /// <returns></returns>
         public async Task SendVariablePayload_StreamAsync(int payloadMin, int payloadMax, int increment = 1)
         {
-            using var streamCall = _client.SendEquipmentStream();
+            using var streamCall = _client.SendStream();
             for (int i = payloadMin; i <= payloadMax; i += increment)
             {
                 var data = DataGenerator.GenerateData(i);
@@ -125,6 +125,7 @@ namespace IoTClient.gRPC.Equipment
                 logs.Add($"PayloadSize={i},ProtocolBufferSize={data.CalculateSize()},JSONSize={Encoding.UTF8.GetByteCount(jsonData)},RTT={ts.TotalMilliseconds}");
             }
             await streamCall.RequestStream.CompleteAsync();
+            var response = await streamCall.ResponseAsync;
         }
 
         /// <summary>
@@ -135,7 +136,7 @@ namespace IoTClient.gRPC.Equipment
         /// <returns></returns>
         public async Task SendConstantPayload_BiStreamAsync(int payloadSize, int numberOfRuns)
         {
-            using var streamCall = _client.SendEquipmentBiDirectionalStream();
+            using var streamCall = _client.SendBiDirectionalStream();
             // register all response calls 
             var readResponsesTask = Task.Run(async () =>
             {
@@ -165,7 +166,7 @@ namespace IoTClient.gRPC.Equipment
         /// <returns></returns>
         public async Task SendVariablePayload_BiStreamAsync(int payloadMin, int payloadMax, int increment = 1)
         {
-            using var streamCall = _client.SendEquipmentBiDirectionalStream();
+            using var streamCall = _client.SendBiDirectionalStream();
             // register all response calls 
             var readResponsesTask = Task.Run(async () =>
             {

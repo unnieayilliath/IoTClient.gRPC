@@ -11,7 +11,7 @@ httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.Danger
 var httpClient = new HttpClient(httpHandler);
 // The port number must match the port of the gRPC server.
 using var channel = GrpcChannel.ForAddress("https://localhost:5001", new GrpcChannelOptions { HttpClient = httpClient });
-var client = new EdgeGateway.EdgeGatewayClient(channel);
+var client = new Facility.FacilityClient(channel);
 var i = 1;
 while(true)
 {
@@ -23,7 +23,7 @@ while(true)
     };
     Thread.Sleep(2000);
     data.TimestampEnd = DateTime.UtcNow.ToTimestamp();
-    var reply = await client.SendFacilityAsync(data);
+    var reply = await client.SendAsync(data);
     TimeSpan ts = reply.ReceivedTime.ToDateTime() - data.TimestampStart.ToDateTime();
     Console.WriteLine($"Sent in  {ts.Microseconds}");
     i++;
