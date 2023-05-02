@@ -14,9 +14,15 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
 	  
   </ItemGroup>
 	<ItemGroup>
 		<Protobuf Include="..\..\CommonModule.Protos\edge.proto" GrpcServices="Client" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Update="appsettings.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 </Project>
