@@ -24,6 +24,8 @@ namespace IoTClient.gRPC.Equipment
             var certificateHelper = new CertificateHelper(configuration);
             // create a httpHandler
             var httpHandler = new HttpClientHandler();
+            //ignore certificate validations
+            httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
             //add the certificate for authentication
             httpHandler.ClientCertificates.Add(certificateHelper.
                                                 getAuthenticationCertificate());
@@ -114,7 +116,8 @@ namespace IoTClient.gRPC.Equipment
             var receivedTime = DateTime.UtcNow;
             TimeSpan ts = receivedTime - startTime;
             string jsonData = JsonSerializer.Serialize(data);
-            logs.Add($"PayloadSize={payloadSize},ProtocolBufferSize={data.CalculateSize()},JSONSize={Encoding.UTF8.GetByteCount(jsonData)},RTT={ts.TotalMilliseconds}");
+            logs.Add($"PayloadSize={payloadSize},ProtocolBufferSize={data.CalculateSize()}," +
+                $"JSONSize={Encoding.UTF8.GetByteCount(jsonData)},RTT={ts.TotalMilliseconds}");
         }
 
         /// <summary>

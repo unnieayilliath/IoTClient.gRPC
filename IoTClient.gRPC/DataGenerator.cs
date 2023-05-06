@@ -39,7 +39,7 @@ namespace IoTClient.gRPC
         private static IEnumerable<char> CreatePayload(int payloadSize)
         {
             // 1 kb =1024 bytes and 1 byte = 8 bits
-            int numberOfBits = payloadSize * 1024 * 8;
+            int numberOfBits = payloadSize * 8;
             // 1 character is 16 bits
             int numberofChars = numberOfBits / 16;
             var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

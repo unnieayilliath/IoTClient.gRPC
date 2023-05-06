@@ -2,12 +2,6 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static CommonModule.Protos.Equipment;
 using static CommonModule.Protos.Facility;
 
 namespace IoTClient.gRPC.Facility
@@ -22,7 +16,7 @@ namespace IoTClient.gRPC.Facility
             // create a httpHandler
             var httpHandler = new HttpClientHandler();
             //ignore certificate validations
-            // httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
 
             //add the certificate for authentication
             httpHandler.ClientCertificates.Add(certificateHelper.getAuthenticationCertificate());
@@ -41,7 +35,7 @@ namespace IoTClient.gRPC.Facility
         public async Task SendDataAsync()
         {
             var i = 1;
-            while (true)
+            while (i<=10)
             {
                 var data = new FacilityMessage
                 {
@@ -61,7 +55,6 @@ namespace IoTClient.gRPC.Facility
 
         public void Dispose()
         {
-            throw new NotImplementedException();
         }
     }
 }

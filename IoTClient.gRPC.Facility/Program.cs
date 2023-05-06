@@ -14,10 +14,18 @@ var builder = new ConfigurationBuilder()
                .AddJsonFile("appsettings.json");
 
 var configuration = builder.Build();
-using (var facilityClient = new FacilityGrpcClient(configuration))
+bool loop = true;
+while (loop)
 {
-    await facilityClient.SendDataAsync();
+    using (var facilityClient = new FacilityGrpcClient(configuration))
+    {
+        await facilityClient.SendDataAsync();
+    }
+    Console.WriteLine("Do you want to exit?(y/n)");
+    var input=Console.ReadKey();
+    loop = input.KeyChar == 'n';
 }
+
 
 Console.WriteLine("Press any key to exit...");
 Console.ReadKey();
