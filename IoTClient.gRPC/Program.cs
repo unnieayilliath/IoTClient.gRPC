@@ -1,86 +1,124 @@
 ﻿using IoTClient.gRPC.Equipment;
 using Microsoft.Extensions.Configuration;
 
-//sleep 5 secs to ensure that facility client is running
-Thread.Sleep(5000);
-var logs = new List<string>();
-var logFilePrefix = "";
-
 var builder = new ConfigurationBuilder()
                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                .AddJsonFile("appsettings.json");
 var configuration = builder.Build();
-using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration))
+var loop = true;
+while (loop)
 {
+    await RunClient(configuration);
+    Console.WriteLine("Do you want to run the client again?(y/n)");
+    var choice = Console.ReadKey();
+    loop = choice.KeyChar == 'y';
+}
+
+Console.WriteLine("\nPress any key to exit...");
+Console.ReadKey();
+
+
+static async Task RunChannelCreationTestsAsync(IConfiguration configuration,string protocol)
+{
+    var logs = new List<string>();
+    var logFilePrefix = "ChannelCreation";
+    for (int i = 0; i < 100; i++)
+    {
+        using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration,protocol))
+        {
+            // run the test wih 100 bytes 
+            await grpcClient.SendConstantPayload_UnaryAsync(100, 1);
+            logs.AddRange(grpcClient.logs);
+        }
+    }
+    // write the logs to file
+    PerformanceLogger.WriteDataToFile($"{logFilePrefix}_${DateTime.Now.Ticks}.txt", logs);
+}
+static async Task RunClient(IConfiguration configuration)
+{
+    var logs = new List<string>();
+    var logFilePrefix = "";
+    Console.WriteLine("Choose HTTP Protocol:\n 1. HTTP3 \t 2. HTTP2");
+    var protocol=Console.ReadLine();
+    protocol=(protocol!=null && protocol=="1")?"h3":"h2";
     var streamingOption = Show_TopLevelChoices();
     var payloadOption = Show_PayloadOptions();
     switch (streamingOption)
     {
-        case '1':
+        case '4':
             {
-                // unary
-                switch (payloadOption)
-                {
-                    case '1':
-                        await Run_Unary_ConstantPayloadTestAsync(grpcClient);
-                        logFilePrefix = "Unary_Constant";
-                        break;
-                    case '2':
-                        await Run_Unary_VariablePayloadTests_Async(grpcClient);
-                        logFilePrefix = "Unary_Variable";
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-        case '2':
-            {
-                //client streaming
-                switch (payloadOption)
-                {
-                    case '1':
-                        await Run_ClientStreaming_ConstantPayloadTestAsync(grpcClient);
-                        logFilePrefix = "ClientStreaming_Constant";
-                        break;
-                    case '2':
-                        await Run_ClientStreaming_VariablePayloadTests_Async(grpcClient);
-                        logFilePrefix = "ClientStreaming_Variable";
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            }
-        case '3':
-            {
-                // bi-directional
-                switch (payloadOption)
-                {
-                    case '1':
-                        await Run_BiStreaming_ConstantPayloadTestAsync(grpcClient);
-                        logFilePrefix = "BiStreaming_Constant";
-                        break;
-                    case '2':
-                        await Run_BiStreaming_VariablePayloadTests_Async(grpcClient);
-                        logFilePrefix = "BiStreaming_Variable";
-                        break;
-                    default:
-                        break;
-                }
+                await RunChannelCreationTestsAsync(configuration, protocol);
                 break;
             }
 
         default:
+            using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration, protocol))
+            {
+                switch (streamingOption)
+                {
+                    case '1':
+                        {
+                            // unary
+                            switch (payloadOption)
+                            {
+                                case '1':
+                                    await Run_Unary_ConstantPayloadTestAsync(grpcClient);
+                                    logFilePrefix = "Unary_Constant";
+                                    break;
+                                case '2':
+                                    await Run_Unary_VariablePayloadTests_Async(grpcClient);
+                                    logFilePrefix = "Unary_Variable";
+                                    break;
+                                default:
+                                    break;
+                            }
+                            break;
+                        }
+                    case '2':
+                        {
+                            //client streaming
+                            switch (payloadOption)
+                            {
+                                case '1':
+                                    await Run_ClientStreaming_ConstantPayloadTestAsync(grpcClient);
+                                    logFilePrefix = "ClientStreaming_Constant";
+                                    break;
+                                case '2':
+                                    await Run_ClientStreaming_VariablePayloadTests_Async(grpcClient);
+                                    logFilePrefix = "ClientStreaming_Variable";
+                                    break;
+                                default:
+                                    break;
+                            }
+                            break;
+                        }
+                    case '3':
+                        {
+                            // bi-directional
+                            switch (payloadOption)
+                            {
+                                case '1':
+                                    await Run_BiStreaming_ConstantPayloadTestAsync(grpcClient);
+                                    logFilePrefix = "BiStreaming_Constant";
+                                    break;
+                                case '2':
+                                    await Run_BiStreaming_VariablePayloadTests_Async(grpcClient);
+                                    logFilePrefix = "BiStreaming_Variable";
+                                    break;
+                                default:
+                                    break;
+                            }
+                            break;
+                        }
+
+                }
+                logs = grpcClient.logs;
+            }
             break;
     }
-    logs = grpcClient.logs;
+    // write the logs to file
+    PerformanceLogger.WriteDataToFile($"{logFilePrefix}_${DateTime.Now.Ticks}.txt", logs);
 }
-// write the logs to file
-PerformanceLogger.WriteDataToFile($"{logFilePrefix}_${DateTime.Now.Ticks.ToString()}.txt", logs);
-Console.WriteLine("\nPress any key to exit...");
-Console.ReadKey();
-
 static async Task Run_Unary_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient)
 {
     string? payloadSize, numberOfRuns;
@@ -124,7 +162,8 @@ static char Show_TopLevelChoices()
     Console.WriteLine("\nSelect testing options:\n" +
             "1. Unary " +
             "2. Client Streaming " +
-            "3. Bi-directional");
+            "3. Bi-directional" +
+            "4. Channel Creation test");
     var streamingOption = Console.ReadKey();
     return streamingOption.KeyChar;
 }
