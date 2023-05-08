@@ -8,7 +8,19 @@ var configuration = builder.Build();
 var loop = true;
 while (loop)
 {
-    await RunClient(configuration);
+    var streamingOption = Show_TopLevelChoices();
+    var payloadOption = Show_PayloadOptions();
+    string? payloadSize, numberOfRuns, numberOfStreams;
+    Get_ConstantPayload_Parameters(out payloadSize, out numberOfRuns, out numberOfStreams);
+    var logs = new List<string>();
+    var logFilePrefix = streamingOption == '1' ? "Unary_" : (streamingOption == '2' ? "ClientStreaming_" : streamingOption == '3' ? "bidirectional_" : "ChannelCreation_");
+    for (var i = 1; i <= int.Parse(numberOfRuns); i++)
+    {
+        var currentlog = await RunClient(configuration, streamingOption, payloadOption, payloadSize, numberOfStreams);
+        logs.AddRange(currentlog);
+    }
+    // write the logs to file
+    PerformanceLogger.WriteDataToFile($"{logFilePrefix}_{payloadSize}_${DateTime.Now.Ticks}.txt", logs);
     Console.WriteLine("Do you want to run the client again?(y/n)");
     var choice = Console.ReadKey();
     loop = choice.KeyChar == 'y';
@@ -18,41 +30,35 @@ Console.WriteLine("\nPress any key to exit...");
 Console.ReadKey();
 
 
-static async Task RunChannelCreationTestsAsync(IConfiguration configuration,string protocol)
+static async Task RunChannelCreationTestsAsync(IConfiguration configuration)
 {
     var logs = new List<string>();
     var logFilePrefix = "ChannelCreation";
     for (int i = 0; i < 100; i++)
     {
-        using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration,protocol))
+        using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration))
         {
             // run the test wih 100 bytes 
-            await grpcClient.SendConstantPayload_UnaryAsync(100, 1);
+            await grpcClient.SendConstantPayload_UnaryAsync(100, 3);
             logs.AddRange(grpcClient.logs);
         }
     }
     // write the logs to file
     PerformanceLogger.WriteDataToFile($"{logFilePrefix}_${DateTime.Now.Ticks}.txt", logs);
 }
-static async Task RunClient(IConfiguration configuration)
+static async Task<List<string>> RunClient(IConfiguration configuration, char streamingOption, char payloadOption, string payloadSize, string numberOfRuns)
 {
     var logs = new List<string>();
-    var logFilePrefix = "";
-    Console.WriteLine("Choose HTTP Protocol:\n 1. HTTP3 \t 2. HTTP2");
-    var protocol=Console.ReadLine();
-    protocol=(protocol!=null && protocol=="1")?"h3":"h2";
-    var streamingOption = Show_TopLevelChoices();
-    var payloadOption = Show_PayloadOptions();
     switch (streamingOption)
     {
         case '4':
             {
-                await RunChannelCreationTestsAsync(configuration, protocol);
+                await RunChannelCreationTestsAsync(configuration);
                 break;
             }
 
         default:
-            using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration, protocol))
+            using (EquipmentGrpcClient grpcClient = new EquipmentGrpcClient(configuration))
             {
                 switch (streamingOption)
                 {
@@ -62,12 +68,7 @@ static async Task RunClient(IConfiguration configuration)
                             switch (payloadOption)
                             {
                                 case '1':
-                                    await Run_Unary_ConstantPayloadTestAsync(grpcClient);
-                                    logFilePrefix = "Unary_Constant";
-                                    break;
-                                case '2':
-                                    await Run_Unary_VariablePayloadTests_Async(grpcClient);
-                                    logFilePrefix = "Unary_Variable";
+                                    await Run_Unary_ConstantPayloadTestAsync(grpcClient, payloadSize, numberOfRuns);
                                     break;
                                 default:
                                     break;
@@ -80,12 +81,7 @@ static async Task RunClient(IConfiguration configuration)
                             switch (payloadOption)
                             {
                                 case '1':
-                                    await Run_ClientStreaming_ConstantPayloadTestAsync(grpcClient);
-                                    logFilePrefix = "ClientStreaming_Constant";
-                                    break;
-                                case '2':
-                                    await Run_ClientStreaming_VariablePayloadTests_Async(grpcClient);
-                                    logFilePrefix = "ClientStreaming_Variable";
+                                    await Run_ClientStreaming_ConstantPayloadTestAsync(grpcClient, payloadSize, numberOfRuns);
                                     break;
                                 default:
                                     break;
@@ -98,12 +94,7 @@ static async Task RunClient(IConfiguration configuration)
                             switch (payloadOption)
                             {
                                 case '1':
-                                    await Run_BiStreaming_ConstantPayloadTestAsync(grpcClient);
-                                    logFilePrefix = "BiStreaming_Constant";
-                                    break;
-                                case '2':
-                                    await Run_BiStreaming_VariablePayloadTests_Async(grpcClient);
-                                    logFilePrefix = "BiStreaming_Variable";
+                                    await Run_BiStreaming_ConstantPayloadTestAsync(grpcClient, payloadSize, numberOfRuns);
                                     break;
                                 default:
                                     break;
@@ -116,45 +107,27 @@ static async Task RunClient(IConfiguration configuration)
             }
             break;
     }
-    // write the logs to file
-    PerformanceLogger.WriteDataToFile($"{logFilePrefix}_${DateTime.Now.Ticks}.txt", logs);
+    return logs;
 }
-static async Task Run_Unary_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient)
+
+
+static async Task Run_Unary_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient, string payloadSize, string numberOfRuns)
 {
-    string? payloadSize, numberOfRuns;
-    Get_ConstantPayload_Parameters(out payloadSize, out numberOfRuns);
+
     await grpcClient.SendConstantPayload_UnaryAsync(int.Parse(payloadSize), int.Parse(numberOfRuns));
 }
 
-static async Task Run_Unary_VariablePayloadTests_Async(EquipmentGrpcClient grpcClient)
-{
-    string? payloadMinSize, payloadMaxSize, increment;
-    Get_VariablePayload_Parameters(out payloadMinSize, out payloadMaxSize, out increment);
-    await grpcClient.SendVariablePayload_UnaryAsync(int.Parse(payloadMinSize), int.Parse(payloadMaxSize), int.Parse(increment));
-}
 
-static async Task Run_ClientStreaming_VariablePayloadTests_Async(EquipmentGrpcClient grpcClient)
+
+
+static async Task Run_ClientStreaming_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient, string payloadSize, string numberOfRuns)
 {
-    string? payloadMinSize, payloadMaxSize, increment;
-    Get_VariablePayload_Parameters(out payloadMinSize, out payloadMaxSize, out increment);
-    await grpcClient.SendVariablePayload_StreamAsync(int.Parse(payloadMinSize), int.Parse(payloadMaxSize), int.Parse(increment));
-}
-static async Task Run_ClientStreaming_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient)
-{
-    string? payloadSize, numberOfRuns;
-    Get_ConstantPayload_Parameters(out payloadSize, out numberOfRuns);
+
     await grpcClient.SendConstantPayload_StreamAsync(int.Parse(payloadSize), int.Parse(numberOfRuns));
 }
-static async Task Run_BiStreaming_VariablePayloadTests_Async(EquipmentGrpcClient grpcClient)
+
+static async Task Run_BiStreaming_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient, string payloadSize, string numberOfRuns)
 {
-    string? payloadMinSize, payloadMaxSize, increment;
-    Get_VariablePayload_Parameters(out payloadMinSize, out payloadMaxSize, out increment);
-    await grpcClient.SendVariablePayload_BiStreamAsync(int.Parse(payloadMinSize), int.Parse(payloadMaxSize), int.Parse(increment));
-}
-static async Task Run_BiStreaming_ConstantPayloadTestAsync(EquipmentGrpcClient grpcClient)
-{
-    string? payloadSize, numberOfRuns;
-    Get_ConstantPayload_Parameters(out payloadSize, out numberOfRuns);
     await grpcClient.SendConstantPayload_BiStreamAsync(int.Parse(payloadSize), int.Parse(numberOfRuns));
 }
 static char Show_TopLevelChoices()
@@ -170,27 +143,21 @@ static char Show_TopLevelChoices()
 
 static char Show_PayloadOptions()
 {
-    Console.WriteLine("\nSelect payload options:\n" +
-                "1. Constant payload " +
-                "2. Variable payload (Incremental)");
-    var payloadOption = Console.ReadKey();
-    return payloadOption.KeyChar;
+    // only choose constant
+    return '1';
+    //Console.WriteLine("\nSelect payload options:\n" +
+    //            "1. Constant payload " +
+    //            "2. Variable payload (Incremental)");
+    //var payloadOption = Console.ReadKey();
+    //return payloadOption.KeyChar;
 }
 
-static void Get_ConstantPayload_Parameters(out string? payloadSize, out string? numberOfRuns)
+static void Get_ConstantPayload_Parameters(out string? payloadSize, out string? numberOfRuns, out string? numberOfStreams)
 {
     Console.WriteLine("\nEnter the payload size:");
     payloadSize = Console.ReadLine();
     Console.WriteLine("\nEnter the number of runs:");
     numberOfRuns = Console.ReadLine();
-}
-
-static void Get_VariablePayload_Parameters(out string? payloadMinSize, out string? payloadMaxSize, out string? increment)
-{
-    Console.WriteLine("\nEnter the payload minimum size:");
-    payloadMinSize = Console.ReadLine();
-    Console.WriteLine("\nEnter the payload maximum size:");
-    payloadMaxSize = Console.ReadLine();
-    Console.WriteLine("\nEnter the increment on each run:");
-    increment = Console.ReadLine();
+    Console.WriteLine("\nEnter the number of streams per run:");
+    numberOfStreams = Console.ReadLine();
 }

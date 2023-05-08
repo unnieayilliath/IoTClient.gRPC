@@ -23,7 +23,9 @@ namespace IoTClient.gRPC.Equipment
         private readonly GrpcChannel _clientChannel;
         private readonly EquipmentClient _client;
         public List<string> logs = new List<string>();
-        public EquipmentGrpcClient(IConfiguration configuration,string protocol)
+        public Dictionary<string, DateTime> biStreamClientRequests = new Dictionary<string, DateTime>();
+        public Dictionary<string, DateTime> biStreamClientResponses = new Dictionary<string, DateTime>();
+        public EquipmentGrpcClient(IConfiguration configuration)
         {
             var certificateHelper = new CertificateHelper(configuration);
             // create a httpHandler
@@ -34,8 +36,6 @@ namespace IoTClient.gRPC.Equipment
             httpHandler.ClientCertificates.Add(certificateHelper.
                                                 getAuthenticationCertificate());
             var httpClient = new HttpClient(httpHandler);
-            httpClient.DefaultRequestVersion = protocol=="h3"?HttpVersion.Version30: HttpVersion.Version20;
-            httpClient.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
             var gRPCConfig = configuration.GetSection("grpc");
             if (gRPCConfig == null)
             {
@@ -46,7 +46,7 @@ namespace IoTClient.gRPC.Equipment
             // Channel is actually created on the first call to the server.
             _clientChannel = GrpcChannel.ForAddress(gRPCEdgeServer,
                 new GrpcChannelOptions { HttpClient = httpClient });
-            var end=DateTime.UtcNow;
+            var end = DateTime.UtcNow;
             _client = new EquipmentClient(_clientChannel);
         }
         /// <summary>
@@ -112,13 +112,18 @@ namespace IoTClient.gRPC.Equipment
         public async Task SendConstantPayload_StreamAsync(int payloadSize, int numberOfRuns)
         {
             var data = DataGenerator.GenerateData(payloadSize);
+            var startTime=DateTime.UtcNow;
             using var streamCall = _client.SendStream();
             for (int i = 1; i <= numberOfRuns; i++)
             {
                 await Send_ClientStreamingAsync(payloadSize, streamCall, data);
             }
             await streamCall.RequestStream.CompleteAsync();
+            //wait for response
             var response = await streamCall.ResponseAsync;
+            var endTime = DateTime.UtcNow;
+            var ts= endTime - startTime;
+            logs.Add($"{payloadSize},{ts.TotalMilliseconds}");
         }
         /// <summary>
         /// This method makes a client streaming call
@@ -128,13 +133,9 @@ namespace IoTClient.gRPC.Equipment
         /// <returns></returns>
         private async Task Send_ClientStreamingAsync(int payloadSize, AsyncClientStreamingCall<EquipmentMessage, EdgeResponse> streamCall, EquipmentMessage data)
         {
-            var startTime = DateTime.UtcNow;
+            //store the send time
+            data.Timestamp = DateTime.UtcNow.ToTimestamp();
             await streamCall.RequestStream.WriteAsync(data);
-            var receivedTime = DateTime.UtcNow;
-            TimeSpan ts = receivedTime - startTime;
-            string jsonData = JsonSerializer.Serialize(data);
-            logs.Add($"PayloadSize={payloadSize},ProtocolBufferSize={data.CalculateSize()}," +
-                $"JSONSize={Encoding.UTF8.GetByteCount(jsonData)},RTT={ts.TotalMilliseconds}");
         }
 
         /// <summary>
@@ -182,21 +183,35 @@ namespace IoTClient.gRPC.Equipment
             }
             await streamCall.RequestStream.CompleteAsync();
             await readResponsesTask;
+            // log the bistream metrics
+            LogBiStreamMetrics(payloadSize);
         }
-
+        private void LogBiStreamMetrics(int payloadSize)
+        {
+            foreach (var request in biStreamClientRequests)
+            {
+                DateTime response;
+                if (biStreamClientResponses.TryGetValue(request.Key, out response))
+                {
+                    TimeSpan ts = response - request.Value;
+                    logs.Add($"{payloadSize},{request.Key},{ts.TotalMilliseconds}");
+                }
+            }
+        }
         private Task RegisterResponseCalls(AsyncDuplexStreamingCall<EquipmentMessage, EdgeResponse> streamCall)
         {
             // register all response calls 
             var readResponsesTask = Task.Run(async () =>
             {
+                List<Task> tasks = new List<Task>();
                 await foreach (var responseMessage in streamCall.ResponseStream.ReadAllAsync())
                 {
-                    //get the response for the message
-                    logs.Add($",,,ReceivedTime={DateTime.UtcNow.ToTimestamp()},messageId={responseMessage.MessageId}");
+                    biStreamClientResponses.Add(responseMessage.MessageId, DateTime.UtcNow);
                 }
             });
             return readResponsesTask;
         }
+
 
         /// <summary>
         /// 
@@ -232,10 +247,10 @@ namespace IoTClient.gRPC.Equipment
         /// <returns></returns>
         private async Task Send_BiStreamAsync(int payloadsize, AsyncDuplexStreamingCall<EquipmentMessage, EdgeResponse> streamCall, EquipmentMessage data)
         {
-            var startTime = DateTime.UtcNow;
+            var sendTime= DateTime.UtcNow;
+            data.Timestamp = sendTime.ToTimestamp();
             await streamCall.RequestStream.WriteAsync(data);
-            string jsonData = JsonSerializer.Serialize(data);
-            logs.Add($"PayloadSize={payloadsize},ProtocolBufferSize={data.CalculateSize()},JSONSize={Encoding.UTF8.GetByteCount(jsonData)},SendTime={startTime.ToTimestamp()},messageId={data.MessageId}");
+            biStreamClientRequests.Add(data.MessageId, sendTime);
         }
 
         /// <summary>
