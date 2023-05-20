@@ -20,17 +20,24 @@ namespace IoTClient.gRPC
         {
             var message = new EquipmentMessage();
             int randomNumber = 10;// rnd.Next(1, 11);
-            message.MessageId=Guid.NewGuid().ToString();
+            message.MessageId = Guid.NewGuid().ToString();
             message.DeviceId = $"machine-{randomNumber}";
             message.Status = randomNumber % 2 == 0 ? "Running" : "Stopped";
-            message.Timestamp = new DateTime(2023,05,05).ToUniversalTime().ToTimestamp();
+            message.Timestamp = new DateTime(2023, 05, 05).ToUniversalTime().ToTimestamp();
             message.Temperature = 88;//message.Status == "Running" ? rnd.Next(50, 99) : rnd.Next(10, 30);
             message.EnergyConsumption = 169;// message.Status == "Running" ? rnd.Next(100, 200) : 0;
             message.ProductionRate = 10;
-            // the other properties of this message form 80.4965 bytes on the wire.
-            var additionalBytes =(int)Math.Round((payloadSize - 80.4965) / 0.5005); //this is the formula to get exactly the payloadsize passed in the protobuf wire data
+            //the other properties of this message form 80.4965 bytes on the wire.
+            var additionalBytes = (int)Math.Round((payloadSize - 80.4965) / 0.5005); //this is the formula to get exactly the payloadsize passed in the protobuf wire data
             IEnumerable<char> list = CreatePayload(additionalBytes);
             message.Payload= string.Join("", list);
+            return message;
+        }
+        public static EquipmentMessage GenerateData_Tests(int payloadSize)
+        {
+            var message = new EquipmentMessage();
+            IEnumerable<char> list = CreatePayload(payloadSize);
+            message.Payload = string.Join("", list);
             return message;
         }
         /// <summary>
@@ -46,7 +53,7 @@ namespace IoTClient.gRPC
             int numberofChars = numberOfBits / 16;
             var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             var random = new Random();
-            var list = Enumerable.Repeat(0, numberofChars).Select(x => chars[random.Next(chars.Length)]);
+            var list = Enumerable.Repeat(0, numberofChars).Select(x => chars[random.Next(chars.Length-1)]);
             return list;
         }
     }

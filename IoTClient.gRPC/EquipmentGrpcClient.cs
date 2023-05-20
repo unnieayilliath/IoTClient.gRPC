@@ -3,19 +3,9 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Net;
-using System.Net.Quic;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using static CommonModule.Protos.Equipment;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace IoTClient.gRPC.Equipment
 {
     internal class EquipmentGrpcClient : IDisposable
@@ -46,7 +36,6 @@ namespace IoTClient.gRPC.Equipment
             // Channel is actually created on the first call to the server.
             _clientChannel = GrpcChannel.ForAddress(gRPCEdgeServer,
                 new GrpcChannelOptions { HttpClient = httpClient });
-            var end = DateTime.UtcNow;
             _client = new EquipmentClient(_clientChannel);
         }
         /// <summary>
@@ -92,14 +81,15 @@ namespace IoTClient.gRPC.Equipment
         /// </summary>
         /// <param name="payloadSize"></param>
         /// <returns></returns>
-        private async Task Send_UnaryAsync(int payloadSize, EquipmentMessage data)
+        public async Task Send_UnaryAsync(int payloadSize, EquipmentMessage data,string wifi="")
         {
             var startTime = DateTime.UtcNow;
             var reply = await _client.SendAsync(data);
             var receivedTime = DateTime.UtcNow;
             TimeSpan ts = receivedTime - startTime;
             string jsonData = JsonSerializer.Serialize(data);
-            logs.Add($"PayloadSize={payloadSize},ProtocolBufferSize={data.CalculateSize()}," +
+            logs.Add($"Wifi={wifi},PayloadSize={payloadSize}," +
+                $"ProtocolBufferSize={data.CalculateSize()}," +
                 $"JSONSize={Encoding.UTF8.GetByteCount(jsonData)},RTT={ts.TotalMilliseconds}");
         }
 
@@ -116,7 +106,7 @@ namespace IoTClient.gRPC.Equipment
             using var streamCall = _client.SendStream();
             for (int i = 1; i <= numberOfRuns; i++)
             {
-                await Send_ClientStreamingAsync(payloadSize, streamCall, data);
+                await streamCall.RequestStream.WriteAsync(data);
             }
             await streamCall.RequestStream.CompleteAsync();
             //wait for response
@@ -175,16 +165,17 @@ namespace IoTClient.gRPC.Equipment
         public async Task SendConstantPayload_BiStreamAsync(int payloadSize, int numberOfRuns)
         {
             using var streamCall = _client.SendBiDirectionalStream();
+            var data = DataGenerator.GenerateData(payloadSize);
             Task readResponsesTask = RegisterResponseCalls(streamCall);
             for (int i = 1; i <= numberOfRuns; i++)
             {
-                var data = DataGenerator.GenerateData(payloadSize);
-                await Send_BiStreamAsync(payloadSize, streamCall, data);
+                await Send_BiStreamAsync(streamCall, data);
             }
             await streamCall.RequestStream.CompleteAsync();
             await readResponsesTask;
             // log the bistream metrics
             LogBiStreamMetrics(payloadSize);
+           
         }
         private void LogBiStreamMetrics(int payloadSize)
         {
@@ -197,6 +188,9 @@ namespace IoTClient.gRPC.Equipment
                     logs.Add($"{payloadSize},{request.Key},{ts.TotalMilliseconds}");
                 }
             }
+            //reset the request and response
+            biStreamClientRequests = new Dictionary<string, DateTime>();
+            biStreamClientResponses = new Dictionary<string, DateTime>();
         }
         private Task RegisterResponseCalls(AsyncDuplexStreamingCall<EquipmentMessage, EdgeResponse> streamCall)
         {
@@ -233,7 +227,7 @@ namespace IoTClient.gRPC.Equipment
             foreach (var message in messageList)
             {
                 k++;
-                await Send_BiStreamAsync(k, streamCall, message);
+                await Send_BiStreamAsync(streamCall, message);
             }
 
             await streamCall.RequestStream.CompleteAsync();
@@ -245,7 +239,7 @@ namespace IoTClient.gRPC.Equipment
         /// <param name="payloadsize"></param>
         /// <param name="streamCall"></param>
         /// <returns></returns>
-        private async Task Send_BiStreamAsync(int payloadsize, AsyncDuplexStreamingCall<EquipmentMessage, EdgeResponse> streamCall, EquipmentMessage data)
+        private async Task Send_BiStreamAsync(AsyncDuplexStreamingCall<EquipmentMessage, EdgeResponse> streamCall, EquipmentMessage data)
         {
             var sendTime= DateTime.UtcNow;
             data.Timestamp = sendTime.ToTimestamp();
